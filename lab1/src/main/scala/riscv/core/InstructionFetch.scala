@@ -25,19 +25,22 @@ class InstructionFetch extends Module {
   val io = IO(new Bundle {
     val jump_flag_id = Input(Bool())
     val jump_address_id = Input(UInt(Parameters.AddrWidth))
-    val instruction_read_data = Input(UInt(Parameters.DataWidth))
-    val instruction_valid = Input(Bool())
+    val instruction_read_data = Input(UInt(Parameters.DataWidth))//-根据PC读指令的结果
+    val instruction_valid = Input(Bool())//-指令有效
 
-    val instruction_address = Output(UInt(Parameters.AddrWidth))
-    val instruction = Output(UInt(Parameters.InstructionWidth))
+    val instruction_address = Output(UInt(Parameters.AddrWidth))//-下一条指令的地址?
+    val instruction = Output(UInt(Parameters.InstructionWidth))//-输出指令
   })
   val pc = RegInit(ProgramCounter.EntryAddress)
 
   when(io.instruction_valid) {
     io.instruction := io.instruction_read_data
     // lab1(InstructionFetch)
-
-
+	pc := pc + 4.U  //指令的地址加4
+	//处理jump
+	when(io.jump_flag_id) {
+		pc := pc+jump_address_id
+	}
 
     // la1(InstructionFetch) end
 
