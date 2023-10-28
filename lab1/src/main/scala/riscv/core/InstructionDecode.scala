@@ -18,25 +18,25 @@ import chisel3._
 import chisel3.util._
 import riscv.Parameters
 
-object InstructionTypes {
-  val L = "b0000011".U
-  val I = "b0010011".U
-  val S = "b0100011".U
-  val RM = "b0110011".U
-  val B = "b1100011".U
+object InstructionTypes {  // 枚举了opcode,这里是一些指令大类
+  val L = "b0000011".U   //load类型（属于i型）
+  val I = "b0010011".U   //i型
+  val S = "b0100011".U   //s型
+  val RM = "b0110011".U  //R型
+  val B = "b1100011".U   //B型
 }
 
-object Instructions {
-  val lui = "b0110111".U
-  val nop = "b0000001".U
-  val jal = "b1101111".U
-  val jalr = "b1100111".U
-  val auipc = "b0010111".U
+object Instructions {     // 同样枚举了opcode
+  val lui = "b0110111".U  //U型
+  val nop = "b0000001".U  //啥也不干
+  val jal = "b1101111".U  //J型
+  val jalr = "b1100111".U //I型
+  val auipc = "b0010111".U  //U型
   val csr = "b1110011".U
   val fence = "b0001111".U
 }
 
-object InstructionsTypeL {
+object InstructionsTypeL {//load指令，属于I型，以下枚举funct3的值
   val lb = "b000".U
   val lh = "b001".U
   val lw = "b010".U
@@ -44,7 +44,7 @@ object InstructionsTypeL {
   val lhu = "b101".U
 }
 
-object InstructionsTypeI {
+object InstructionsTypeI {//I型指令
   val addi = 0.U
   val slli = 1.U
   val slti = 2.U
@@ -55,13 +55,13 @@ object InstructionsTypeI {
   val andi = 7.U
 }
 
-object InstructionsTypeS {
+object InstructionsTypeS {//S型
   val sb = "b000".U
   val sh = "b001".U
   val sw = "b010".U
 }
 
-object InstructionsTypeR {
+object InstructionsTypeR {//R型
   val add_sub = 0.U
   val sll = 1.U
   val slt = 2.U
@@ -72,7 +72,7 @@ object InstructionsTypeR {
   val and = 7.U
 }
 
-object InstructionsTypeM {
+object InstructionsTypeM {//R型，和乘法有关
   val mul = 0.U
   val mulh = 1.U
   val mulhsu = 2.U
@@ -83,7 +83,7 @@ object InstructionsTypeM {
   val remu = 7.U
 }
 
-object InstructionsTypeB {
+object InstructionsTypeB {//B型
   val beq = "b000".U
   val bne = "b001".U
   val blt = "b100".U
@@ -135,18 +135,20 @@ object RegWriteSource {
 class InstructionDecode extends Module {
   val io = IO(new Bundle {
     val instruction = Input(UInt(Parameters.InstructionWidth))
-
+    //这两个指定读寄存器组的两个寄存器地址
     val regs_reg1_read_address = Output(UInt(Parameters.PhysicalRegisterAddrWidth))
     val regs_reg2_read_address = Output(UInt(Parameters.PhysicalRegisterAddrWidth))
-    val ex_immediate = Output(UInt(Parameters.DataWidth))
+    val ex_immediate = Output(UInt(Parameters.DataWidth))//立即数
+    //这两个操作ALU入口处的两个MUX
     val ex_aluop1_source = Output(UInt(1.W))
     val ex_aluop2_source = Output(UInt(1.W))
-    val memory_read_enable = Output(Bool())
-    val memory_write_enable = Output(Bool())
-    val wb_reg_write_source = Output(UInt(2.W))
-    val reg_write_enable = Output(Bool())
-    val reg_write_address = Output(UInt(Parameters.PhysicalRegisterAddrWidth))
+    val memory_read_enable = Output(Bool())//读内存的使能
+    val memory_write_enable = Output(Bool())//写内存的使能
+    val wb_reg_write_source = Output(UInt(2.W))//控制ALU出口的MUX(多路复用器)，选一个写回寄存器组
+    val reg_write_enable = Output(Bool())//写寄存器的使能
+    val reg_write_address = Output(UInt(Parameters.PhysicalRegisterAddrWidth))//写寄存器的地址
   })
+  //拆分指令
   val opcode = io.instruction(6, 0)
   val funct3 = io.instruction(14, 12)
   val funct7 = io.instruction(31, 25)
@@ -154,12 +156,12 @@ class InstructionDecode extends Module {
   val rs1 = io.instruction(19, 15)
   val rs2 = io.instruction(24, 20)
 
-  io.regs_reg1_read_address := Mux(opcode === Instructions.lui, 0.U(Parameters.PhysicalRegisterAddrWidth), rs1)
+  io.regs_reg1_read_address := Mux(opcode === Instructions.lui, 0.U(Parameters.PhysicalRegisterAddrWidth), rs1)//这里需要对lui指令特殊处理,保证lui在这里取rs1=0
   io.regs_reg2_read_address := rs2
   val immediate = MuxLookup(
     opcode,
     Cat(Fill(20, io.instruction(31)), io.instruction(31, 20)),
-    IndexedSeq(
+    IndexedSeq(   //Cat的作用是符号扩展
       InstructionTypes.I -> Cat(Fill(21, io.instruction(31)), io.instruction(30, 20)),
       InstructionTypes.L -> Cat(Fill(21, io.instruction(31)), io.instruction(30, 20)),
       Instructions.jalr -> Cat(Fill(21, io.instruction(31)), io.instruction(30, 20)),
@@ -169,15 +171,45 @@ class InstructionDecode extends Module {
       Instructions.auipc -> Cat(io.instruction(31, 12), 0.U(12.W)),
       Instructions.jal -> Cat(Fill(12, io.instruction(31)), io.instruction(19, 12), io.instruction(20), io.instruction(30, 21), 0.U(1.W))
     )
-  )
+  )//用于获取立即数
   io.ex_immediate := immediate
   io.ex_aluop1_source := Mux(
     opcode === Instructions.auipc || opcode === InstructionTypes.B || opcode === Instructions.jal,
-    ALUOp1Source.InstructionAddress,
-    ALUOp1Source.Register
-  )
+    ALUOp1Source.InstructionAddress,  //1,将指令地址传入ALU进行计算
+    ALUOp1Source.Register  //0
+  )//这一部分网页上的图片画错了
 
   // lab1(InstructionDecode)
+  //补充为 io.ex_aluop2_source、io.memory_read_enable、io.memory_write_enable、io.wb_reg_write_source 四个控制信号赋值的代码
+  //io.ex_aluop2_source
+  io.ex_aluop2_source := Mux(
+    opcode === InstructionTypes.L || opcode === InstructionTypes.I || opcode === Instructions.jalr
+      || opcode === Instructions.jal || opcode === InstructionTypes.S || opcode === InstructionTypes.B ||
+      opcode === Instructions.lui || opcode === Instructions.auipc,
+    ALUOp2Source.Immediate,
+    ALUOp2Source.Register
+  )
+  //io.memory_read_enable
+  io.memory_read_enable := Mux(
+    opcode === InstructionTypes.L , 1.U(1.W) , 0.U(1.W)
+  )
+  //io.memory_write_enable
+  io.memory_write_enable := Mux(
+    opcode === InstructionTypes.S , 1.U(1.W) , 0.U(1.W)
+  )
+  //io.wb_reg_write_source
+  io.wb_reg_write_source:=RegWriteSource.ALUResult //默认等于0
+  when(opcode === InstructionTypes.RM || opcode === InstructionTypes.I
+    || opcode === Instructions.lui || opcode === Instructions.auipc){
+    io.wb_reg_write_source := RegWriteSource.ALUResult
+  }
+    .elsewhen(opcode === InstructionTypes.L){
+      io.wb_reg_write_source := RegWriteSource.Memory
+    }
+    .elsewhen(opcode === Instructions.jal || opcode === Instructions.jalr){
+      io.wb_reg_write_source := RegWriteSource.NextInstructionAddress
+    }
+
 
 
 
