@@ -39,7 +39,7 @@ class InstructionFetch extends Module {
 	pc := pc + 4.U  //指令的地址加4
 	//处理jump
 	when(io.jump_flag_id) {
-		pc := pc + Int(io.jump_address_id)
+		pc := io.jump_address_id
 	}
 
     // la1(InstructionFetch) end
