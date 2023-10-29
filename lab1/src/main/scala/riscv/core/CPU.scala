@@ -21,12 +21,12 @@ import riscv.{CPUBundle, Parameters}
 class CPU extends Module {
   val io = IO(new CPUBundle)
 
-  val regs = Module(new RegisterFile)
-  val inst_fetch = Module(new InstructionFetch)
-  val id = Module(new InstructionDecode)
-  val ex = Module(new Execute)
-  val mem = Module(new MemoryAccess)
-  val wb = Module(new WriteBack)
+  val regs = Module(new RegisterFile)             //寄存器组
+  val inst_fetch = Module(new InstructionFetch)   //取址
+  val id = Module(new InstructionDecode)          //译码
+  val ex = Module(new Execute)                    //执行
+  val mem = Module(new MemoryAccess)              //访存
+  val wb = Module(new WriteBack)                  //写回
 
 
   io.deviceSelect := mem.io.memory_bundle.address(Parameters.AddrBits - 1, Parameters.AddrBits - Parameters.SlaveDeviceCountBits)
@@ -49,7 +49,14 @@ class CPU extends Module {
   id.io.instruction := inst_fetch.io.instruction
 
   // lab1(cpu)
-
+  //填写 Execute 模块的输入与其他模块输出的连线
+  ex.io.instruction := inst_fetch.io.instruction
+  ex.io.instruction_address := inst_fetch.io.instruction_address
+  ex.io.reg1_data := regs.io.read_data1
+  ex.io.reg2_data := regs.io.read_data2
+  ex.io.immediate := id.io.ex_immediate
+  ex.io.aluop1_source := id.io.ex_aluop1_source
+  ex.io.aluop2_source := id.io.ex_aluop2_source
 
 
 
