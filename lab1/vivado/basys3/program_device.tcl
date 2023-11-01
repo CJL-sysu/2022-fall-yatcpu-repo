@@ -13,8 +13,8 @@
 # limitations under the License.
 
 # Only tested on Vivado 2020.1 on Windows 10
-open_hw_manager
-connect_hw_server -allow_non_jtag
+open_hw
+connect_hw_server
 open_hw_target
 current_hw_device [get_hw_devices xc7a35t_0]
 refresh_hw_server [current_hw_server]
