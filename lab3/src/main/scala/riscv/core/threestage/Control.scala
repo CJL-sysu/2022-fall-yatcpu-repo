@@ -18,4 +18,10 @@ import chisel3._
 
 class Control extends Module {
   // Lab3(Flush)
+  val io = IO(new Bundle{
+    val JumpFlag = Input(Bool())
+    val Flush = Output(Bool())
+  })
+  io.Flush := io.JumpFlag
+  // lab3 end
 }
