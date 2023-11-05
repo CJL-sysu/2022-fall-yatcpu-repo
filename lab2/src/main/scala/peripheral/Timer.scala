@@ -35,4 +35,38 @@ class Timer extends Module {
 
   //lab2(CLINTCSR)
   //finish the read-write for count,limit,enabled. And produce appropriate signal_interrupt
+  //读
+
+  io.bundle.read_data := limit
+
+  when(io.bundle.address === 8.U){
+    when(enabled){
+      io.bundle.read_data:=1.U
+    }
+      .otherwise{
+        io.bundle.read_data:=0.U
+      }
+  }
+  //写
+  when(io.bundle.write_enable){
+    when(io.bundle.address === 4.U){
+      limit := io.bundle.write_data
+    }
+      .elsewhen(io.bundle.address === 8.U){
+        enabled := io.bundle.write_data =/= 0.U
+      }
+  }
+  //计时
+  io.signal_interrupt := false.B
+  when(count === limit)
+  {
+    count := 0.U
+    when(enabled){
+      io.signal_interrupt := true.B
+    }
+  }
+    .otherwise{
+      count := count + 1.U
+      io.signal_interrupt := false.B
+    }
 }

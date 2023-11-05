@@ -36,7 +36,7 @@ object InterruptState {
 }
 
 object CSRState {
-  val Idle = 0x0.U
+  val Idle = 0x0.U    //空闲
   val Traping = 0x1.U
   val Mret = 0x2.U
 }
@@ -61,47 +61,47 @@ class CLINT extends Module {
     val interrupt_flag = Input(UInt(Parameters.InterruptFlagWidth))
 
     val instruction = Input(UInt(Parameters.InstructionWidth))
-    val instruction_address = Input(UInt(Parameters.AddrWidth))
+    val instruction_address = Input(UInt(Parameters.AddrWidth))   //IFInsAddr
 
     val jump_flag = Input(Bool())
     val jump_address = Input(UInt(Parameters.AddrWidth))
 
-    val interrupt_handler_address = Output(UInt(Parameters.AddrWidth))
-    val interrupt_assert = Output(Bool())
+    val interrupt_handler_address = Output(UInt(Parameters.AddrWidth))   //中断处理程序的地址
+    val interrupt_assert = Output(Bool())                                //是否中断的标志
 
-    val csr_bundle = new CSRDirectAccessBundle
+    val csr_bundle = new CSRDirectAccessBundle                           //图中CSR和CLINT之间的八根线
   })
-  val interrupt_enable = io.csr_bundle.mstatus(3)
+  val interrupt_enable = io.csr_bundle.mstatus(3)  //mstatus第三位是中断的使能
   val instruction_address = Mux(
     io.jump_flag,
     io.jump_address,
     io.instruction_address + 4.U,
   )
   //lab2(CLINTCSR)
-  /*
-  val interrupt_enable =
 
-  when(io.interrupt_flag =/= InterruptStatus.None && interrupt_enable) {
-    io.csr_bundle.mstatus_write_data :=
-    io.csr_bundle.mepc_write_data :=
-    io.csr_bundle.mcause_write_data :=
-    io.csr_bundle.direct_write_enable :=
-    io.interrupt_assert :=
-    io.interrupt_handler_address :=
+  //val interrupt_enable =
+
+  when(io.interrupt_flag =/= InterruptStatus.None && interrupt_enable) {   //  =/=表示不等
+    io.csr_bundle.mstatus_write_data := io.csr_bundle.mstatus(31,13)## 3.U(2.W) ## io.csr_bundle.mstatus(10,4) ## 0.U(1.W) ## io.csr_bundle.mstatus(2,0)//特权级别设置为M-mode//修改MIE位，关中断
+    io.csr_bundle.mepc_write_data := instruction_address    //保存下一条指令的地址
+    io.csr_bundle.mcause_write_data := Mux(io.interrupt_flag(0),0x80000007L.U,0x8000000BL.U)//io.interrupt_flag(0)为1表示由timer产生的外部中断，对应mcause的值0x80000007L.U,否则是uart造成的软件中断
+    io.csr_bundle.direct_write_enable := true.B
+    io.interrupt_assert := true.B
+    io.interrupt_handler_address := io.csr_bundle.mtvec
   }.elsewhen(io.instruction === InstructionsRet.mret) {
-    io.csr_bundle.mstatus_write_data :=
-    io.csr_bundle.mepc_write_data :=
-    io.csr_bundle.mcause_write_data :=
-    io.csr_bundle.direct_write_enable :=
-    io.interrupt_assert :=
-    io.interrupt_handler_address :=
+    io.csr_bundle.mstatus_write_data := io.csr_bundle.mstatus(31,13)## 3.U(2.W) ## io.csr_bundle.mstatus(10,4) ## 1.U(1.W) ## io.csr_bundle.mstatus(2,0)//特权级别设置为M-mode//修改MIE位，开中断
+    io.csr_bundle.mepc_write_data := io.csr_bundle.mepc                              //保持原样
+    io.csr_bundle.mcause_write_data := io.csr_bundle.mcause
+    io.csr_bundle.direct_write_enable := true.B
+    io.interrupt_assert := true.B
+    io.interrupt_handler_address := io.csr_bundle.mepc
   }.otherwise {
-    io.csr_bundle.mstatus_write_data :=
-    io.csr_bundle.mepc_write_data :=
-    io.csr_bundle.mcause_write_data :=
-    io.csr_bundle.direct_write_enable :=
-    io.interrupt_assert :=
-    io.interrupt_handler_address :=
+    io.csr_bundle.mstatus_write_data := io.csr_bundle.mstatus                         //保持原样
+    io.csr_bundle.mepc_write_data := io.csr_bundle.mepc                               //保持原样
+    io.csr_bundle.mcause_write_data := io.csr_bundle.mcause
+    io.csr_bundle.direct_write_enable := false.B
+    io.interrupt_assert := false.B
+    io.interrupt_handler_address :=io.csr_bundle.mtvec                                 //don't care
   }
-   */
+
 }

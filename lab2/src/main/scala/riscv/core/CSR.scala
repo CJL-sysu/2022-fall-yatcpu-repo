@@ -33,24 +33,24 @@ object CSRRegister {
 
 class CSR extends Module {
   val io = IO(new Bundle {
-    val reg_read_address_id = Input(UInt(Parameters.CSRRegisterAddrWidth))
-    val reg_write_enable_id= Input(Bool())
-    val reg_write_address_id = Input(UInt(Parameters.CSRRegisterAddrWidth))
-    val reg_write_data_ex= Input(UInt(Parameters.DataWidth))
+    val reg_read_address_id = Input(UInt(Parameters.CSRRegisterAddrWidth))    //CSRRA
+    val reg_write_enable_id= Input(Bool())                                    //CSRWE
+    val reg_write_address_id = Input(UInt(Parameters.CSRRegisterAddrWidth))   //CSRWA
+    val reg_write_data_ex= Input(UInt(Parameters.DataWidth))                  //CSRWD
     val debug_reg_read_address = Input(UInt(Parameters.CSRRegisterAddrWidth))
 
     val debug_reg_read_data = Output(UInt(Parameters.DataWidth))
-    val reg_read_data = Output(UInt(Parameters.DataWidth))
+    val reg_read_data = Output(UInt(Parameters.DataWidth))                    //CSRRD
 
-    val clint_access_bundle = Flipped(new CSRDirectAccessBundle)
+    val clint_access_bundle = Flipped(new CSRDirectAccessBundle)              //和CLINT连接的八根线
   })
 
-  val mstatus = RegInit(UInt(Parameters.DataWidth), 0.U)
+  val mstatus = RegInit(UInt(Parameters.DataWidth), 0.U)  //在响应中断时，需要将 mstatus 寄存器中的 MPIE 标志位设置为 0，禁用中断。
   val mie = RegInit(UInt(Parameters.DataWidth), 0.U)
-  val mtvec = RegInit(UInt(Parameters.DataWidth), 0.U)
+  val mtvec = RegInit(UInt(Parameters.DataWidth), 0.U)    //从 mtvec 获取中断处理程序的地址，跳转到该地址执行进一步的中断处理
   val mscratch = RegInit(UInt(Parameters.DataWidth), 0.U)
-  val mepc = RegInit(UInt(Parameters.DataWidth), 0.U)
-  val mcause = RegInit(UInt(Parameters.DataWidth), 0.U)
+  val mepc = RegInit(UInt(Parameters.DataWidth), 0.U)     //保存的是中断或者异常处理完成后，CPU返回并开始执行的地址。所以对于异常和中断，mepc 的保存内容需要注意
+  val mcause = RegInit(UInt(Parameters.DataWidth), 0.U)   //保存的是导致中断或者异常的原因
   val cycles = RegInit(UInt(64.W), 0.U)
   val regLUT =
     IndexedSeq(
@@ -70,15 +70,17 @@ class CSR extends Module {
   io.reg_read_data := MuxLookup(io.reg_read_address_id, 0.U, regLUT)
   io.debug_reg_read_data := MuxLookup(io.debug_reg_read_address, 0.U,regLUT)
 
+  //以下对应原理图中CSR和CLINT之间的左四根线
   //lab2(CLINTCSR)
   //what data should be passed from csr to clint (Note: what should clint see is the next state of the CPU)
-  /*
-  io.clint_access_bundle.mstatus :=
-  io.clint_access_bundle.mtvec :=
-  io.clint_access_bundle.mcause :=
-  io.clint_access_bundle.mepc :=
-  */
 
+  io.clint_access_bundle.mstatus := Mux(io.reg_write_enable_id && io.reg_write_address_id===CSRRegister.MSTATUS,io.reg_write_data_ex,mstatus)
+  io.clint_access_bundle.mtvec := Mux(io.reg_write_enable_id && io.reg_write_address_id===CSRRegister.MTVEC,io.reg_write_data_ex,mtvec)
+  io.clint_access_bundle.mcause := Mux(io.reg_write_enable_id && io.reg_write_address_id===CSRRegister.MCAUSE,io.reg_write_data_ex,mcause)
+  io.clint_access_bundle.mepc := Mux(io.reg_write_enable_id && io.reg_write_address_id===CSRRegister.MEPC,io.reg_write_data_ex,mepc)
+  //lab2 end
+
+  //以下对应原理图中CSR和CLINT之间的右四根线
   when(io.clint_access_bundle.direct_write_enable) {
     mstatus := io.clint_access_bundle.mstatus_write_data
     mepc := io.clint_access_bundle.mepc_write_data

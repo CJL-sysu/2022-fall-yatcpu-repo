@@ -27,10 +27,10 @@ class Execute extends Module {
     val immediate = Input(UInt(Parameters.DataWidth))
     val aluop1_source = Input(UInt(1.W))
     val aluop2_source = Input(UInt(1.W))
-    val csr_reg_read_data = Input(UInt(Parameters.DataWidth))
+    val csr_reg_read_data = Input(UInt(Parameters.DataWidth))   //CSRRD
 
     val mem_alu_result = Output(UInt(Parameters.DataWidth))
-    val csr_reg_write_data = Output(UInt(Parameters.DataWidth))
+    val csr_reg_write_data = Output(UInt(Parameters.DataWidth)) //CSRWD
     val if_jump_flag = Output(Bool())
     val if_jump_address = Output(UInt(Parameters.DataWidth))
   })
@@ -73,7 +73,28 @@ class Execute extends Module {
   io.if_jump_address := io.immediate + Mux(opcode === Instructions.jalr, io.reg1_data, io.instruction_address)
   io.mem_alu_result := alu.io.result
   // lab2(CLINTCSR)
-  /*
-  io.csr_reg_write_data :=
-  */
+  val rs1 = io.instruction(19,15)
+  io.csr_reg_write_data := 0.U
+  when(opcode === Instructions.csr){
+    when(funct3 === InstructionsTypeCSR.csrrw){
+      io.csr_reg_write_data := io.reg1_data
+    }
+      .elsewhen(funct3 === InstructionsTypeCSR.csrrs){
+        io.csr_reg_write_data := Mux(rs1 =/= 0.U, io.csr_reg_read_data .| (io.reg1_data) ,io.csr_reg_read_data)
+      }
+      .elsewhen(funct3 === InstructionsTypeCSR.csrrc){
+        io.csr_reg_write_data := Mux(rs1 =/= 0.U, io.csr_reg_read_data .& (~io.reg1_data) ,io.csr_reg_read_data)
+      }
+      .elsewhen(funct3 === InstructionsTypeCSR.csrrwi){
+        io.csr_reg_write_data := rs1
+      }
+      .elsewhen(funct3 === InstructionsTypeCSR.csrrsi){
+        io.csr_reg_write_data := Mux(rs1 =/= 0.U, io.csr_reg_read_data .| ((0.U(27.W))##rs1) ,io.csr_reg_read_data)
+      }
+      .elsewhen(funct3 === InstructionsTypeCSR.csrrci){
+        io.csr_reg_write_data := Mux(rs1 =/= 0.U, io.csr_reg_read_data .& ((0x7ffffffL.U(27.W))##(~rs1)) ,io.csr_reg_read_data)
+      }
+  }
+  //lab2 end
+
 }

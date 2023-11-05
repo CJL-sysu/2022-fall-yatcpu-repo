@@ -136,7 +136,7 @@ class SimpleTrapTest extends AnyFlatSpec with ChiselScalatestTester {
   behavior of "Single Cycle CPU with CSR and CLINT"
   it should "jump to trap handler and then return" in {
     test(new TestTopModule("simpletest.asmbin")).withAnnotations(TestAnnotations.annos) { c =>
-      for (i <- 1 to 100) {
+      for (i <- 1 to 1000) {
         c.clock.step()
         c.io.mem_debug_read_address.poke((i * 4).U) // Avoid timeout
       }
@@ -146,11 +146,15 @@ class SimpleTrapTest extends AnyFlatSpec with ChiselScalatestTester {
       c.io.interrupt_flag.poke(0x1.U)
       c.clock.step(5)
       c.io.interrupt_flag.poke(0.U)
-      c.clock.step(10000)
-      c.io.csr_regs_debug_read_address.poke(CSRRegister.MSTATUS)
+      for (i <- 1 to 1000) {
+        c.clock.step()
+        c.io.mem_debug_read_address.poke((i * 4).U) // Avoid timeout
+      }
+      c.io.csr_regs_debug_read_address.poke(0x300.U) // CSRRegister.MSTATUS
       c.io.csr_regs_debug_read_data.expect(0x1888.U)
-      c.io.csr_regs_debug_read_address.poke(CSRRegister.MCAUSE)
+      c.io.csr_regs_debug_read_address.poke(0x342.U) // CSRRegister.MCAUSE
       c.io.csr_regs_debug_read_data.expect(0x80000007L.U)
+      c.clock.step(10)
       c.io.mem_debug_read_address.poke(0x4.U)
       c.clock.step()
       c.io.mem_debug_read_data.expect(0x2022L.U)
