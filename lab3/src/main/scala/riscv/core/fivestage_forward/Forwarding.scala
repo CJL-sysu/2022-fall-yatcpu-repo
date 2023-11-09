@@ -25,20 +25,50 @@ object ForwardingType {
 
 class Forwarding extends Module {
   val io = IO(new Bundle() {
-    val rs1_ex = Input(UInt(Parameters.PhysicalRegisterAddrWidth))
-    val rs2_ex = Input(UInt(Parameters.PhysicalRegisterAddrWidth))
-    val rd_mem = Input(UInt(Parameters.PhysicalRegisterAddrWidth))
-    val reg_write_enable_mem = Input(Bool())
-    val rd_wb = Input(UInt(Parameters.PhysicalRegisterAddrWidth))
-    val reg_write_enable_wb = Input(Bool())
+    val rs1_ex = Input(UInt(Parameters.PhysicalRegisterAddrWidth))  //id2ex.io.output_regs_reg1_read_address
+    val rs2_ex = Input(UInt(Parameters.PhysicalRegisterAddrWidth))  //id2ex.io.output_regs_reg2_read_address
+    val rd_mem = Input(UInt(Parameters.PhysicalRegisterAddrWidth))  //ex2mem.io.output_regs_write_address
+    val reg_write_enable_mem = Input(Bool())                        //ex2mem.io.output_regs_write_enable
+    val rd_wb = Input(UInt(Parameters.PhysicalRegisterAddrWidth))   //mem2wb.io.output_regs_write_address
+    val reg_write_enable_wb = Input(Bool())                         //mem2wb.io.output_regs_write_enable
 
     // Forwarding Type
-    val reg1_forward_ex = Output(UInt(2.W))
-    val reg2_forward_ex = Output(UInt(2.W))
+    val reg1_forward_ex = Output(UInt(2.W))                         //ex.io.reg1_forward
+    val reg2_forward_ex = Output(UInt(2.W))                         //ex.io.reg2_forward
   })
 
   // Lab3(Forward)
-  io.reg1_forward_ex := 0.U
-  io.reg2_forward_ex := 0.U
+  //用一个旁路单元来检测数据冒险并发出旁路控制信号，模块接口已经定义在这里
+  when(io.reg_write_enable_mem && io.rs1_ex === io.rd_mem && io.rd_mem =/= 0.U){
+    io.reg1_forward_ex := ForwardingType.ForwardFromMEM
+  }.elsewhen(io.reg_write_enable_wb && io.rs1_ex === io.rd_wb && io.rd_wb =/= 0.U){
+    io.reg1_forward_ex := ForwardingType.ForwardFromWB
+  }.otherwise{
+    io.reg1_forward_ex := ForwardingType.NoForward
+  }
+  when(io.reg_write_enable_mem && io.rs2_ex === io.rd_mem && io.rd_mem =/= 0.U){
+    io.reg2_forward_ex := ForwardingType.ForwardFromMEM
+  }.elsewhen(io.reg_write_enable_wb && io.rs2_ex === io.rd_wb && io.rd_wb =/= 0.U){
+    io.reg2_forward_ex := ForwardingType.ForwardFromWB
+  }.otherwise{
+    io.reg2_forward_ex := ForwardingType.NoForward
+  }
+
+
+//  io.reg1_forward_ex := ForwardingType.NoForward
+//  io.reg2_forward_ex := ForwardingType.NoForward
+//  when(io.reg_write_enable_mem && (io.rs1_ex === io.rd_mem || io.rs2_ex === io.rd_mem) && io.rd_mem =/= 0.U){
+//    when(io.rs1_ex === io.rd_mem){
+//      io.reg1_forward_ex := ForwardingType.ForwardFromMEM
+//    }.elsewhen(io.rs2_ex === io.rd_mem){
+//      io.reg2_forward_ex := ForwardingType.ForwardFromMEM
+//    }
+//  }.elsewhen(io.reg_write_enable_wb && (io.rs1_ex === io.rd_wb || io.rs2_ex === io.rd_wb) && io.rd_wb =/= 0.U){
+//    when(io.rs1_ex === io.rd_wb){
+//      io.reg1_forward_ex := ForwardingType.ForwardFromWB
+//    }.elsewhen(io.rs2_ex === io.rd_wb){
+//      io.reg2_forward_ex := ForwardingType.ForwardFromWB
+//    }
+//  }
   // Lab3(Forward) End
 }

@@ -32,8 +32,8 @@ class Execute extends Module {
     val csr_read_data_id = Input(UInt(Parameters.DataWidth))
     val forward_from_mem = Input(UInt(Parameters.DataWidth))
     val forward_from_wb = Input(UInt(Parameters.DataWidth))
-    val reg1_forward = Input(UInt(2.W))
-    val reg2_forward = Input(UInt(2.W))
+    val reg1_forward = Input(UInt(2.W))                         //forwarding.io.reg1_forward_ex
+    val reg2_forward = Input(UInt(2.W))                         //forwarding.io.reg2_forward_ex
     val interrupt_assert_clint = Input(Bool())
     val interrupt_handler_address_clint = Input(UInt(Parameters.AddrWidth))
 
@@ -61,8 +61,25 @@ class Execute extends Module {
   alu.io.func := alu_ctrl.io.alu_funct
 
   // Lab3(Forward)
-  val reg1_data = 0.U
-  val reg2_data = 0.U
+  //在执行单元中根据旁路单元的控制信号使用对应的旁路数据
+//  var reg1_data = io.reg1_data
+//  var reg2_data = io.reg2_data
+//  when(io.reg1_forward === ForwardingType.ForwardFromMEM) {
+//    reg1_data = io.forward_from_mem
+//  }.elsewhen(io.reg1_forward === ForwardingType.ForwardFromWB){
+//    reg1_data = io.forward_from_wb
+//  }
+//  when(io.reg2_forward === ForwardingType.ForwardFromMEM){
+//    reg2_data = io.forward_from_mem
+//  }.elsewhen(io.reg2_forward === ForwardingType.ForwardFromWB){
+//    reg2_data = io.forward_from_wb
+//  }
+  val reg1_data = Mux(io.reg1_forward === ForwardingType.ForwardFromMEM, io.forward_from_mem,
+    Mux(io.reg1_forward === ForwardingType.ForwardFromWB,io.forward_from_wb,io.reg1_data)
+  )
+  val reg2_data = Mux(io.reg2_forward === ForwardingType.ForwardFromMEM,io.forward_from_mem,
+    Mux(io.reg2_forward === ForwardingType.ForwardFromWB,io.forward_from_wb,io.reg2_data)
+  )
   // Lab3(Forward) End
 
   alu.io.op1 := Mux(
