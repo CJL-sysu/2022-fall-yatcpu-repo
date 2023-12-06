@@ -84,7 +84,7 @@ class CLINT extends Module {
   when(io.interrupt_flag =/= InterruptStatus.None && interrupt_enable) {   //  =/=表示不等
     io.csr_bundle.mstatus_write_data := io.csr_bundle.mstatus(31,13)## 3.U(2.W) ## io.csr_bundle.mstatus(10,4) ## 0.U(1.W) ## io.csr_bundle.mstatus(2,0)//特权级别设置为M-mode//修改MIE位，关中断
     io.csr_bundle.mepc_write_data := instruction_address    //保存下一条指令的地址
-    io.csr_bundle.mcause_write_data := Mux(io.interrupt_flag(0),0x80000007L.U,0x8000000BL.U)//io.interrupt_flag(0)为1表示由timer产生的外部中断，对应mcause的值0x80000007L.U,否则是uart造成的软件中断
+    io.csr_bundle.mcause_write_data := Mux(io.interrupt_flag(0),0x80000007L.U,0x8000000BL.U)//io.interrupt_flag(0)为1表示由timer产生的外部中断，对应mcause的值0x80000007L.U,否则是uart造成的软件中断，见特权级手册39页
     io.csr_bundle.direct_write_enable := true.B
     io.interrupt_assert := true.B
     io.interrupt_handler_address := io.csr_bundle.mtvec

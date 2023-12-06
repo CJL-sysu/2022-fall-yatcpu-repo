@@ -135,15 +135,15 @@ object RegWriteSource {
 class InstructionDecode extends Module {
   val io = IO(new Bundle {
     val instruction = Input(UInt(Parameters.InstructionWidth))
-    val instruction_address = Input(UInt(Parameters.AddrWidth))
-    val reg1_data = Input(UInt(Parameters.DataWidth))
-    val reg2_data = Input(UInt(Parameters.DataWidth))
-    val forward_from_mem = Input(UInt(Parameters.DataWidth))
-    val forward_from_wb = Input(UInt(Parameters.DataWidth))
-    val reg1_forward = Input(UInt(2.W))
-    val reg2_forward = Input(UInt(2.W))
-    val interrupt_assert = Input(Bool())
-    val interrupt_handler_address = Input(UInt(Parameters.AddrWidth))
+    val instruction_address = Input(UInt(Parameters.AddrWidth))        //if2id.io.output_instruction_address
+    val reg1_data = Input(UInt(Parameters.DataWidth))                  //regs.io.read_data1
+    val reg2_data = Input(UInt(Parameters.DataWidth))                  //regs.io.read_data2
+    val forward_from_mem = Input(UInt(Parameters.DataWidth))           //mem.io.forward_data
+    val forward_from_wb = Input(UInt(Parameters.DataWidth))            //wb.io.regs_write_data
+    val reg1_forward = Input(UInt(2.W))                                //forwarding.io.reg1_forward_id
+    val reg2_forward = Input(UInt(2.W))                                //forwarding.io.reg2_forward_id
+    val interrupt_assert = Input(Bool())                               //clint.io.id_interrupt_assert
+    val interrupt_handler_address = Input(UInt(Parameters.AddrWidth))  //clint.io.id_interrupt_handler_address
 
     val regs_reg1_read_address = Output(UInt(Parameters.PhysicalRegisterAddrWidth))
     val regs_reg2_read_address = Output(UInt(Parameters.PhysicalRegisterAddrWidth))
@@ -157,11 +157,11 @@ class InstructionDecode extends Module {
     val ex_reg_write_address = Output(UInt(Parameters.PhysicalRegisterAddrWidth))
     val ex_csr_address = Output(UInt(Parameters.CSRRegisterAddrWidth))
     val ex_csr_write_enable = Output(Bool())
-    val ctrl_jump_instruction = Output(Bool())
-    val clint_jump_flag = Output(Bool())
-    val clint_jump_address = Output(UInt(Parameters.AddrWidth))
-    val if_jump_flag = Output(Bool())
-    val if_jump_address = Output(UInt(Parameters.AddrWidth))
+    val ctrl_jump_instruction = Output(Bool())                         //ctrl.io.jump_instruction_id
+    val clint_jump_flag = Output(Bool())                               //clint.io.jump_flag
+    val clint_jump_address = Output(UInt(Parameters.AddrWidth))        //clint.io.jump_address
+    val if_jump_flag = Output(Bool())                                  //ctrl.io.jump_flag , inst_fetch.io.jump_flag_id
+    val if_jump_address = Output(UInt(Parameters.AddrWidth))           //inst_fetch.io.jump_address_id
   })
   val opcode = io.instruction(6, 0)
   val funct3 = io.instruction(14, 12)
@@ -220,10 +220,49 @@ class InstructionDecode extends Module {
     )
 
   // Lab3(Final)
-  io.ctrl_jump_instruction := false.B
-  io.clint_jump_flag := false.B
-  io.clint_jump_address := 0.U
-  io.if_jump_flag := false.B
-  io.if_jump_address := 0.U
+  io.clint_jump_flag := io.interrupt_assert
+  io.clint_jump_address := io.interrupt_handler_address
+  val reg1_data = MuxLookup(
+    io.reg1_forward,
+    0.U,
+    IndexedSeq(
+      ForwardingType.NoForward -> (io.reg1_data),
+      ForwardingType.ForwardFromWB -> (io.forward_from_wb),
+      ForwardingType.ForwardFromMEM -> (io.forward_from_mem)
+    )
+  )
+  val reg2_data = MuxLookup(
+    io.reg2_forward,
+    0.U,
+    IndexedSeq(
+      ForwardingType.NoForward -> (io.reg2_data),
+      ForwardingType.ForwardFromWB -> (io.forward_from_wb),
+      ForwardingType.ForwardFromMEM -> (io.forward_from_mem)
+    )
+  )
+  io.if_jump_flag := opcode === Instructions.jal ||
+    (opcode === Instructions.jalr) ||
+    (opcode === InstructionTypes.B) && MuxLookup(
+      funct3,
+      false.B,
+      IndexedSeq(
+        InstructionsTypeB.beq -> (reg1_data === reg2_data),
+        InstructionsTypeB.bne -> (reg1_data =/= reg2_data),
+        InstructionsTypeB.blt -> (reg1_data.asSInt < reg2_data.asSInt),
+        InstructionsTypeB.bge -> (reg1_data.asSInt >= reg2_data.asSInt),
+        InstructionsTypeB.bltu -> (reg1_data.asUInt < reg2_data.asUInt),
+        InstructionsTypeB.bgeu -> (reg1_data.asUInt >= reg2_data.asUInt)
+      )
+    )   //从lab1 Execute.scala复制粘贴来的
+  io.ctrl_jump_instruction := io.if_jump_flag
+  io.if_jump_address := MuxLookup(
+    opcode,
+    0.U,
+    IndexedSeq(
+      InstructionTypes.B -> (io.instruction_address + io.ex_immediate),
+      Instructions.jal -> (io.instruction_address + io.ex_immediate),
+      Instructions.jalr -> (reg1_data + io.ex_immediate)
+    )
+  )
   // Lab3(Final) End
 }
