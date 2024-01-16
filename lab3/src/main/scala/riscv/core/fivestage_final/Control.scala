@@ -39,12 +39,12 @@ class Control extends Module {
   io.id_flush := false.B
   io.pc_stall := false.B
   io.if_stall := false.B
-  when((io.memory_read_enable_ex && io.rd_ex =/= 0.U && (io.rd_ex === io.rs1_id || io.rd_ex === io.rs2_id))||
-    (io.memory_read_enable_mem && io.rd_mem =/= 0.U && (io.rd_mem === io.rs1_id || io.rd_mem === io.rs2_id))) {
+  when(((io.jump_instruction_id || io.memory_read_enable_ex) && io.rd_ex =/= 0.U && (io.rd_ex === io.rs1_id || io.rd_ex === io.rs2_id))||
+    (io.jump_instruction_id && io.memory_read_enable_mem && io.rd_mem =/= 0.U && (io.rd_mem === io.rs1_id || io.rd_mem === io.rs2_id))) {
     io.id_flush := true.B
     io.pc_stall := true.B
     io.if_stall := true.B
-  }.elsewhen(io.jump_instruction_id){
+  }.elsewhen(io.jump_flag){
     io.if_flush := true.B
   }
   // Lab3(Final) End

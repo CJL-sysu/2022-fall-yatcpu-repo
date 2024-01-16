@@ -220,8 +220,8 @@ class InstructionDecode extends Module {
     )
 
   // Lab3(Final)
-  io.clint_jump_flag := io.interrupt_assert
-  io.clint_jump_address := io.interrupt_handler_address
+//  io.clint_jump_flag := io.interrupt_assert
+//  io.clint_jump_address := io.interrupt_handler_address
   val reg1_data = MuxLookup(
     io.reg1_forward,
     0.U,
@@ -240,22 +240,36 @@ class InstructionDecode extends Module {
       ForwardingType.ForwardFromMEM -> (io.forward_from_mem)
     )
   )
+  io.ctrl_jump_instruction := opcode === Instructions.jal ||
+    (opcode === Instructions.jalr) ||
+    (opcode === InstructionTypes.B)
+
   io.if_jump_flag := opcode === Instructions.jal ||
     (opcode === Instructions.jalr) ||
     (opcode === InstructionTypes.B) && MuxLookup(
-      funct3,
-      false.B,
-      IndexedSeq(
-        InstructionsTypeB.beq -> (reg1_data === reg2_data),
-        InstructionsTypeB.bne -> (reg1_data =/= reg2_data),
-        InstructionsTypeB.blt -> (reg1_data.asSInt < reg2_data.asSInt),
-        InstructionsTypeB.bge -> (reg1_data.asSInt >= reg2_data.asSInt),
-        InstructionsTypeB.bltu -> (reg1_data.asUInt < reg2_data.asUInt),
-        InstructionsTypeB.bgeu -> (reg1_data.asUInt >= reg2_data.asUInt)
-      )
-    )   //从lab1 Execute.scala复制粘贴来的
-  io.ctrl_jump_instruction := io.if_jump_flag
-  io.if_jump_address := MuxLookup(
+    funct3,
+    false.B,
+    IndexedSeq(
+      InstructionsTypeB.beq -> (reg1_data === reg2_data),
+      InstructionsTypeB.bne -> (reg1_data =/= reg2_data),
+      InstructionsTypeB.blt -> (reg1_data.asSInt < reg2_data.asSInt),
+      InstructionsTypeB.bge -> (reg1_data.asSInt >= reg2_data.asSInt),
+      InstructionsTypeB.bltu -> (reg1_data.asUInt < reg2_data.asUInt),
+      InstructionsTypeB.bgeu -> (reg1_data.asUInt >= reg2_data.asUInt)
+    )
+  ) || io.interrupt_assert
+
+  io.if_jump_address := Mux(io.interrupt_assert, io.interrupt_handler_address, MuxLookup(
+    opcode,
+    0.U,
+    IndexedSeq(
+      InstructionTypes.B -> (io.instruction_address + io.ex_immediate),
+      Instructions.jal -> (io.instruction_address + io.ex_immediate),
+      Instructions.jalr -> (reg1_data + io.ex_immediate)
+    )
+  ))
+  io.clint_jump_flag := io.ctrl_jump_instruction
+  io.clint_jump_address := MuxLookup(
     opcode,
     0.U,
     IndexedSeq(
